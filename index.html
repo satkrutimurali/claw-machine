@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Claw Craze — Arcade Claw Machine</title>
+<style>
+  :root {
+    --cabinet-red: #c81e3a;
+    --cabinet-red-dark: #8f1329;
+    --cabinet-gold: #ffcc33;
+    --chrome: #d8dce2;
+    --chrome-dark: #8a8f99;
+    --glass-tint: #dff3ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(circle at 50% 0%, #2b1030, #0d0710 75%);
+    color: #fff;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 18px 10px 30px;
+  }
+
+  #marquee {
+    background: linear-gradient(180deg, #ffe36b, var(--cabinet-gold));
+    color: #6b1010;
+    font-weight: 900;
+    font-size: 26px;
+    letter-spacing: 3px;
+    padding: 8px 30px;
+    border-radius: 10px 10px 0 0;
+    box-shadow: 0 0 22px rgba(255, 204, 51, 0.55), inset 0 -3px 0 rgba(0,0,0,0.15);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.4);
+  }
+
+  #cabinet {
+    background: linear-gradient(160deg, var(--cabinet-red), var(--cabinet-red-dark));
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.55), inset 0 2px 0 rgba(255,255,255,0.15);
+    border: 4px solid #6b0f22;
+    position: relative;
+  }
+
+  #bulbRow {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 6px 10px;
+  }
+  .bulb {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--cabinet-gold);
+    box-shadow: 0 0 6px 2px rgba(255,204,51,0.8);
+    animation: blink 1.4s infinite;
+  }
+  .bulb:nth-child(odd) { animation-delay: 0.7s; }
+  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+  #glassFrame {
+    background: var(--chrome);
+    border-radius: 8px;
+    padding: 10px;
+    box-shadow: inset 0 0 0 4px var(--chrome-dark);
+  }
+
+  canvas {
+    display: block;
+    border-radius: 4px;
+    background: linear-gradient(180deg, var(--glass-tint) 0%, #bfe6ff 70%, #9fd4f5 100%);
+  }
+
+  #controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    margin-top: 14px;
+  }
+  #dpad {
+    display: grid;
+    grid-template-columns: 44px 44px 44px;
+    grid-template-rows: 44px 44px 44px;
+    gap: 4px;
+  }
+  #dpad button {
+    background: var(--chrome);
+    border: 2px solid var(--chrome-dark);
+    border-radius: 6px;
+    font-size: 18px;
+    font-weight: 800;
+    color: #23262b;
+    cursor: pointer;
+  }
+  #dpad button:active { background: var(--chrome-dark); }
+  #dpad .empty { background: transparent; border: none; }
+
+  #catchBtn {
+    width: 92px; height: 92px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ff5b6e, #b5142d);
+    border: 4px solid #7a0f20;
+    color: #fff;
+    font-weight: 900;
+    font-size: 15px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    box-shadow: 0 6px 0 #6b0f1e, 0 8px 14px rgba(0,0,0,0.4);
+  }
+  #catchBtn:active { box-shadow: 0 2px 0 #6b0f1e; transform: translateY(4px); }
+  #catchBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  #sidePanel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+  }
+  #scoreBox {
+    background: #1a1a1a;
+    border: 2px solid var(--chrome-dark);
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-family: 'Courier New', monospace;
+    font-size: 20px;
+    color: #4dff7a;
+    text-shadow: 0 0 6px rgba(77,255,122,0.7);
+    min-width: 140px;
+    text-align: center;
+  }
+  button.reset {
+    background: var(--cabinet-gold);
+    border: none;
+    color: #5c1010;
+    font-weight: 800;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  #message {
+    margin-top: 10px;
+    font-size: 14px;
+    min-height: 20px;
+    color: #ffe36b;
+    font-weight: 600;
+    text-align: center;
+  }
+
+  #prizeShelf {
+    margin-top: 14px;
+    background: #1c1c1c;
+    border: 3px solid var(--chrome-dark);
+    border-radius: 8px;
+    padding: 10px 14px;
+    min-width: 320px;
+    text-align: center;
+  }
+  #prizeShelf h3 { margin: 0 0 6px; font-size: 13px; letter-spacing: 1px; color: var(--cabinet-gold); }
+  #prizeList { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; min-height: 30px; }
+  .prize-chip {
+    width: 30px; height: 30px;
+    border-radius: 6px;
+    background: #2a2a2a;
+  }
+
+  #hint { margin-top: 10px; font-size: 12px; color: #b9a8c0; text-align: center; max-width: 480px; }
+</style>
+</head>
+<body>
+  <div id="marquee">CLAW CRAZE</div>
+  <div id="cabinet">
+    <div id="bulbRow">
+      <div class="bulb"></div><div class="bulb"></div><div class="bulb"></div><div class="bulb"></div>
+      <div class="bulb"></div><div class="bulb"></div><div class="bulb"></div><div class="bulb"></div>
+      <div class="bulb"></div><div class="bulb"></div><div class="bulb"></div><div class="bulb"></div>
+    </div>
+    <div id="glassFrame">
+      <canvas id="game" width="620" height="440"></canvas>
+    </div>
+  </div>
+
+  <div id="message">Move the claw over a toy and hit CATCH.</div>
+
+  <div id="controls">
+    <div id="dpad">
+      <div class="empty"></div><button data-dir="up">▲</button><div class="empty"></div>
+      <button data-dir="left">◀</button><div class="empty"></div><button data-dir="right">▶</button>
+      <div class="empty"></div><button data-dir="down">▼</button><div class="empty"></div>
+    </div>
+    <button id="catchBtn">CATCH</button>
+    <div id="sidePanel">
+      <div id="scoreBox">PRIZES: <span id="scoreVal">0</span></div>
+      <button class="reset" id="resetBtn">↻ Reset Machine</button>
+    </div>
+  </div>
+
+  <div id="prizeShelf">
+    <h3>YOUR PRIZES</h3>
+    <div id="prizeList"></div>
+  </div>
+
+  <div id="hint">Arrow keys or the pad move the claw. Space or CATCH grabs — then carry your toy to the chute on the right and hit CATCH again to drop it in.</div>
+
+<script>
+(function () {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  const FLOOR_Y = H - 60;
+  const RAIL_Y = 34;
+  const CLAW_MIN_X = 40, CLAW_MAX_X = W - 40;
+  const CLAW_MIN_Y = RAIL_Y, CLAW_MAX_Y = FLOOR_Y - 18;
+  const MOVE_SPEED = 3.2;
+  const GRAB_RADIUS = 34;
+  const GRAB_CHANCE = 0.72;
+
+  const CHUTE = { x: W - 70, y: FLOOR_Y - 6, w: 70, h: 26 };
+
+  const scoreVal = document.getElementById('scoreVal');
+  const messageEl = document.getElementById('message');
+  const prizeList = document.getElementById('prizeList');
+  const catchBtn = document.getElementById('catchBtn');
+  const resetBtn = document.getElementById('resetBtn');
+
+  const TYPES = ['squishy', 'slime', 'phone'];
+  const PALETTES = {
+    squishy: ['#ffb3c6', '#ffe066', '#a0e7e5', '#c3aed6'],
+    slime: ['#FFD1DC', '#C9E4FF', '#FFF3B0', '#D9C7FF', '#B8F2E6'],
+    marble: [['#ff8fa3', '#ffd166', '#8ecae6'], ['#c77dff', '#7bdff2', '#ffd6a5'], ['#f7b267', '#f4845f', '#f25c54']],
+    phone: ['#2b2b2b', '#f2f2f2', '#3a3a55']
+  };
+
+  let items = [];
+  let score = 0;
+  let collected = [];
+  let spriteCache = {};
+
+  let keys = { up: false, down: false, left: false, right: false };
+  let claw = { x: W / 2, y: RAIL_Y };
+  let clawOpen = 1;
+  let clawAnimTarget = 1;
+  let heldItem = null;
+  let busy = false;
+
+  const PILE_X_MIN = 40;
+  const PILE_X_MAX = CHUTE.x - 20; // stop before the chute — that gap stays clear
+  const PILE_HEIGHT_BUDGET = (FLOOR_Y - RAIL_Y) * 0.88; // packed almost floor-to-rail
+
+  function rand(min, max) { return min + Math.random() * (max - min); }
+  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+  // Height above the floor baseline used only when a dropped toy re-settles into the pile.
+  function pileHeightAt(x) {
+    return rand(10, PILE_HEIGHT_BUDGET);
+  }
+
+  function createItem(type, x, y, scale) {
+    return {
+      id: Math.random().toString(36).slice(2),
+      type, x,
+      y: (y !== undefined ? y : FLOOR_Y - 4 - pileHeightAt(x)),
+      variantIndex: Math.floor(Math.random() * spriteCache[type].length),
+      bobPhase: rand(0, Math.PI * 2),
+      scale: scale !== undefined ? scale : rand(0.9, 1.6),
+      r: 0,
+      held: false, falling: false, vy: 0
+    };
+  }
+
+  // Organic packing: keep dropping toys into random spots at random (large)
+  // sizes, skipping any spot that's too buried in an existing toy, until the
+  // frame genuinely won't take another one. No target count — the picture
+  // decides how many fit, the same way a real bin of plush toys would.
+  function spawnField() {
+    items = [];
+    const BASE_R = 42;          // toy radius at scale 1
+    const OVERLAP = 0.52;       // how close centers may get, as a fraction of combined radius — lower = more nested overlap
+    const MAX_MISSES = 220;     // consecutive failed placements before we call the frame full
+
+    let misses = 0;
+    while (misses < MAX_MISSES) {
+      const scale = rand(0.75, 1.7);
+      const r = BASE_R * scale;
+      const x = rand(PILE_X_MIN + r * 0.15, PILE_X_MAX - r * 0.15);
+      const y = FLOOR_Y - 4 - rand(6, PILE_HEIGHT_BUDGET);
+
+      let blocked = false;
+      for (let i = 0; i < items.length; i++) {
+        const other = items[i];
+        const minDist = (r + other.r) * OVERLAP;
+        if (Math.hypot(other.x - x, other.y - y) < minDist) { blocked = true; break; }
+      }
+
+      if (blocked) { misses++; continue; }
+      misses = 0;
+      const item = createItem(pick(TYPES), x, y, scale);
+      item.r = r;
+      items.push(item);
+    }
+  }
+
+  function itemLabel(type) {
+    return { squishy: 'Squishy Toy', slime: 'Slime', marble: 'Marbled Stretch Ball', phone: 'Toy Phone' }[type];
+  }
+
+  // ---------- Drawing ----------
+  function drawMachineBackground() {
+    ctx.clearRect(0, 0, W, H);
+
+    // back wall gradient panel
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#eaf7ff');
+    grad.addColorStop(1, '#bfe3f7');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // rail
+    ctx.fillStyle = '#8a8f99';
+    ctx.fillRect(20, RAIL_Y - 10, W - 40, 8);
+    ctx.fillStyle = '#5f636c';
+    for (let x = 30; x < W - 30; x += 24) ctx.fillRect(x, RAIL_Y - 10, 3, 8);
+
+    // floor
+    ctx.fillStyle = '#d8c9a3';
+    ctx.fillRect(0, FLOOR_Y, W, H - FLOOR_Y);
+    ctx.fillStyle = '#c7b78d';
+    for (let x = 0; x < W; x += 20) ctx.fillRect(x, FLOOR_Y, 10, H - FLOOR_Y);
+
+    // chute
+    ctx.fillStyle = '#2b2b2b';
+    ctx.fillRect(CHUTE.x - 4, CHUTE.y - 34, CHUTE.w + 8, CHUTE.h + 38);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(CHUTE.x, CHUTE.y - 20, CHUTE.w, CHUTE.h + 20);
+    ctx.fillStyle = '#ffcc33';
+    ctx.font = 'bold 11px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('PRIZE', CHUTE.x + CHUTE.w / 2, CHUTE.y - 26);
+    ctx.fillText('CHUTE', CHUTE.x + CHUTE.w / 2, CHUTE.y - 14);
+    ctx.strokeStyle = '#ffcc33';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(CHUTE.x - 20, CHUTE.y - 2);
+    ctx.lineTo(CHUTE.x - 4, CHUTE.y - 2);
+    ctx.lineTo(CHUTE.x - 10, CHUTE.y - 8);
+    ctx.moveTo(CHUTE.x - 4, CHUTE.y - 2);
+    ctx.lineTo(CHUTE.x - 10, CHUTE.y + 4);
+    ctx.stroke();
+
+    // glass shine
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.beginPath();
+    ctx.moveTo(30, 10);
+    ctx.lineTo(120, 10);
+    ctx.lineTo(60, H - 20);
+    ctx.lineTo(10, H - 20);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawSquishy(tctx, item, t) {
+    tctx.save();
+    tctx.translate(item.x, item.y);
+    const r = item.r;
+    const bob = Math.sin(t * 0.002 + item.x) * 0.6;
+
+    // ground shadow
+    tctx.fillStyle = 'rgba(0,0,0,0.14)';
+    tctx.beginPath();
+    tctx.ellipse(0, r * 0.85, r * 0.9, r * 0.22, 0, 0, Math.PI * 2);
+    tctx.fill();
+
+    // molded bun-shaped body: flat-ish base, domed rounded top (classic squishy silhouette)
+    tctx.beginPath();
+    tctx.moveTo(-r, r * 0.55);
+    tctx.bezierCurveTo(-r * 1.05, -r * 0.2, -r * 0.65, -r * 1.05, 0, -r * 1.05 + bob);
+    tctx.bezierCurveTo(r * 0.65, -r * 1.05, r * 1.05, -r * 0.2, r, r * 0.55);
+    tctx.bezierCurveTo(r * 0.9, r * 0.85, -r * 0.9, r * 0.85, -r, r * 0.55);
+    tctx.closePath();
+
+    const grad = tctx.createRadialGradient(-r * 0.3, -r * 0.5, r * 0.2, 0, 0, r * 1.2);
+    grad.addColorStop(0, shadeColor(item.color, 24));
+    grad.addColorStop(0.6, item.color);
+    grad.addColorStop(1, shadeColor(item.color, -20));
+    tctx.fillStyle = grad;
+    tctx.fill();
+    tctx.strokeStyle = 'rgba(0,0,0,0.12)';
+    tctx.lineWidth = 1;
+    tctx.stroke();
+
+    // mold seam line, a real foam-squishy manufacturing detail
+    tctx.beginPath();
+    tctx.moveTo(-r * 0.85, r * 0.3);
+    tctx.quadraticCurveTo(0, r * 0.55, r * 0.85, r * 0.3);
+    tctx.strokeStyle = 'rgba(0,0,0,0.15)';
+    tctx.lineWidth = 1;
+    tctx.stroke();
+
+    // fine foam grain speckling
+    item.grain.forEach(g => {
+      tctx.fillStyle = 'rgba(255,255,255,0.22)';
+      tctx.beginPath();
+      tctx.arc(g.dx, g.dy + bob, g.s, 0, Math.PI * 2);
+      tctx.fill();
+    });
+
+    // kawaii closed-eye face
+    tctx.strokeStyle = 'rgba(0,0,0,0.55)';
+    tctx.lineWidth = 1.6;
+    tctx.lineCap = 'round';
+    tctx.beginPath();
+    tctx.moveTo(-r * 0.32, -r * 0.05); tctx.quadraticCurveTo(-r * 0.22, -r * 0.18, -r * 0.12, -r * 0.05);
+    tctx.moveTo(r * 0.12, -r * 0.05); tctx.quadraticCurveTo(r * 0.22, -r * 0.18, r * 0.32, -r * 0.05);
+    tctx.stroke();
+
+    // blush
+    tctx.fillStyle = 'rgba(255,120,140,0.4)';
+    tctx.beginPath(); tctx.ellipse(-r * 0.42, r * 0.08, r * 0.14, r * 0.08, 0, 0, Math.PI * 2); tctx.fill();
+    tctx.beginPath(); tctx.ellipse(r * 0.42, r * 0.08, r * 0.14, r * 0.08, 0, 0, Math.PI * 2); tctx.fill();
+
+    // smile
+    tctx.beginPath();
+    tctx.arc(0, r * 0.05, r * 0.18, 0.15 * Math.PI, 0.85 * Math.PI);
+    tctx.stroke();
+
+    // soft matte highlight (duller than slime's glossy shine — foam, not gel)
+    tctx.fillStyle = 'rgba(255,255,255,0.3)';
+    tctx.beginPath();
+    tctx.ellipse(-r * 0.35, -r * 0.55, r * 0.28, r * 0.14, -0.3, 0, Math.PI * 2);
+    tctx.fill();
+
+    tctx.restore();
+  }
+
+  function drawSlime(tctx, item, t) {
+    tctx.save();
+    tctx.translate(item.x, item.y);
+    const bob = Math.sin(t * 0.003) * 1.4;
+
+    const jarW = 26, jarTop = 6, jarBottom = 26;
+
+    // glass jar
+    tctx.fillStyle = 'rgba(255,255,255,0.35)';
+    roundRect(tctx, -jarW / 2, jarTop, jarW, jarBottom - jarTop, 4);
+    tctx.fill();
+    tctx.strokeStyle = 'rgba(150,150,160,0.6)';
+    tctx.lineWidth = 1.2;
+    roundRect(tctx, -jarW / 2, jarTop, jarW, jarBottom - jarTop, 4);
+    tctx.stroke();
+
+    // slime visible inside the jar
+    tctx.save();
+    tctx.globalAlpha = 0.55;
+    tctx.fillStyle = item.color;
+    roundRect(tctx, -jarW / 2 + 2, jarTop + 3, jarW - 4, jarBottom - jarTop - 5, 3);
+    tctx.fill();
+    tctx.restore();
+
+    // swirled peak above the jar rim (layered tapering ellipses)
+    const layers = 5;
+    for (let i = 0; i < layers; i++) {
+      const ly = jarTop - i * 6 + bob * (i / layers);
+      const lw = jarW - i * 3.2;
+      tctx.fillStyle = i % 2 === 0 ? shadeColor(item.color, 10) : shadeColor(item.color, -8);
+      tctx.beginPath();
+      tctx.ellipse(0, ly, Math.max(lw, 4) / 2, 6, 0, 0, Math.PI * 2);
+      tctx.fill();
+    }
+    tctx.fillStyle = shadeColor(item.color, 16);
+    tctx.beginPath();
+    tctx.ellipse(0, jarTop - layers * 6 + 3 + bob, 5, 5, 0, 0, Math.PI * 2);
+    tctx.fill();
+
+    // sprinkles scattered across the swirl
+    item.sprinkles.forEach(s => {
+      tctx.save();
+      tctx.translate(s.dx, s.dy + bob * 0.5);
+      tctx.rotate(s.rot);
+      tctx.fillStyle = s.color;
+      tctx.fillRect(-3, -1, 6, 2);
+      tctx.restore();
+    });
+
+    // small original charm on top (generic star — not tied to any real product)
+    drawStar(tctx, 0, jarTop - layers * 6 - 2 + bob, 5, 5, 2.2, '#ffffff', shadeColor(item.color, -10));
+
+    tctx.restore();
+  }
+
+  function drawMarble(tctx, item) {
+    tctx.save();
+    tctx.translate(item.x, item.y);
+    tctx.beginPath();
+    tctx.arc(0, 0, item.r, 0, Math.PI * 2);
+    tctx.clip();
+    tctx.fillStyle = item.palette[0];
+    tctx.fillRect(-item.r, -item.r, item.r * 2, item.r * 2);
+    for (let i = 0; i < 6; i++) {
+      tctx.fillStyle = item.palette[(i + 1) % item.palette.length];
+      tctx.globalAlpha = 0.55;
+      tctx.beginPath();
+      const a = item.swirl + i * 1.1;
+      tctx.ellipse(Math.cos(a) * item.r * 0.4, Math.sin(a) * item.r * 0.4, item.r * 0.55, item.r * 0.22, a, 0, Math.PI * 2);
+      tctx.fill();
+    }
+    tctx.globalAlpha = 1;
+    tctx.restore();
+    tctx.beginPath();
+    tctx.arc(item.x, item.y, item.r, 0, Math.PI * 2);
+    tctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    tctx.lineWidth = 1.5;
+    tctx.stroke();
+    tctx.fillStyle = 'rgba(255,255,255,0.4)';
+    tctx.beginPath();
+    tctx.ellipse(item.x - item.r * 0.3, item.y - item.r * 0.35, item.r * 0.18, item.r * 0.1, -0.4, 0, Math.PI * 2);
+    tctx.fill();
+  }
+
+  function drawPhone(tctx, item) {
+    tctx.save();
+    tctx.translate(item.x, item.y);
+    const w = item.w, h = item.h;
+    tctx.fillStyle = item.color;
+    roundRect(tctx, -w / 2, -h / 2, w, h, 6);
+    tctx.fill();
+    tctx.fillStyle = item.color === '#f2f2f2' ? '#cfd6e0' : '#4a4a63';
+    roundRect(tctx, -w / 2 + 2.5, -h / 2 + 5, w - 5, h - 10, 3);
+    tctx.fill();
+    tctx.fillStyle = 'rgba(0,0,0,0.4)';
+    tctx.beginPath();
+    tctx.arc(0, -h / 2 + 3.5, 1.4, 0, Math.PI * 2);
+    tctx.fill();
+    tctx.fillStyle = 'rgba(255,255,255,0.25)';
+    tctx.fillRect(-w / 2 + 3, -h / 2 + 6, 2, h - 12);
+    tctx.restore();
+  }
+
+  function roundRect(tctx, x, y, w, h, r) {
+    tctx.beginPath();
+    tctx.moveTo(x + r, y);
+    tctx.arcTo(x + w, y, x + w, y + h, r);
+    tctx.arcTo(x + w, y + h, x, y + h, r);
+    tctx.arcTo(x, y + h, x, y, r);
+    tctx.arcTo(x, y, x + w, y, r);
+    tctx.closePath();
+  }
+
+  function shadeColor(hex, percent) {
+    const num = parseInt(hex.replace('#', ''), 16);
+    let r = (num >> 16) + percent;
+    let g = ((num >> 8) & 0x00ff) + percent;
+    let b = (num & 0x0000ff) + percent;
+    r = Math.max(Math.min(255, r), 0);
+    g = Math.max(Math.min(255, g), 0);
+    b = Math.max(Math.min(255, b), 0);
+    return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+  }
+
+  function drawStar(tctx, cx, cy, spikes, outerR, innerR, fillColor, strokeColor) {
+    let rot = (Math.PI / 2) * 3;
+    const step = Math.PI / spikes;
+    tctx.beginPath();
+    tctx.moveTo(cx, cy - outerR);
+    for (let i = 0; i < spikes; i++) {
+      let x = cx + Math.cos(rot) * outerR, y = cy + Math.sin(rot) * outerR;
+      tctx.lineTo(x, y); rot += step;
+      x = cx + Math.cos(rot) * innerR; y = cy + Math.sin(rot) * innerR;
+      tctx.lineTo(x, y); rot += step;
+    }
+    tctx.lineTo(cx, cy - outerR);
+    tctx.closePath();
+    tctx.fillStyle = fillColor;
+    tctx.fill();
+    tctx.strokeStyle = strokeColor;
+    tctx.lineWidth = 1;
+    tctx.stroke();
+  }
+
+  // ---------- Sprite cache ----------
+  // Pre-rendering each toy variant once and stamping it with drawImage is what
+  // makes 1000+ toys on screen at once affordable; redrawing gradients and
+  // paths per toy per frame at this scale would tank the frame rate.
+  const SPRITE_R = { squishy: 22, marble: 20 };
+  const SPRITE_BOX = {
+    squishy: { w: 56, h: 56, ox: 28, oy: 30 },
+    slime: { w: 56, h: 62, ox: 28, oy: 34 },
+    marble: { w: 46, h: 46, ox: 23, oy: 23 },
+    phone: { w: 30, h: 50, ox: 15, oy: 25 }
+  };
+
+  function buildSprite(type, colorOrPalette) {
+    const box = SPRITE_BOX[type];
+    const off = document.createElement('canvas');
+    off.width = box.w; off.height = box.h;
+    const octx = off.getContext('2d');
+    octx.translate(box.ox, box.oy);
+
+    const fake = { type, x: 0, y: 0 };
+    if (type === 'squishy') {
+      fake.r = SPRITE_R.squishy;
+      fake.color = colorOrPalette;
+      fake.grain = [];
+      for (let i = 0; i < 16; i++) {
+        fake.grain.push({ dx: rand(-fake.r * 0.8, fake.r * 0.8), dy: rand(-fake.r * 0.85, fake.r * 0.35), s: rand(0.5, 1.5) });
+      }
+      drawSquishy(octx, fake, 0);
+    } else if (type === 'slime') {
+      fake.color = colorOrPalette;
+      const sprinkleColors = ['#ff9ecf', '#9ecbff', '#fff29e', '#b79eff', '#9effc4'];
+      fake.sprinkles = [];
+      for (let i = 0; i < 6; i++) {
+        const ang = rand(0, Math.PI * 2), dist = rand(6, 15);
+        fake.sprinkles.push({ dx: Math.cos(ang) * dist, dy: -16 + Math.sin(ang) * dist * 0.4 - rand(0, 8), rot: rand(0, Math.PI), color: pick(sprinkleColors) });
+      }
+      drawSlime(octx, fake, 0);
+    } else if (type === 'marble') {
+      fake.r = SPRITE_R.marble;
+      fake.palette = colorOrPalette;
+      fake.swirl = rand(0, Math.PI * 2);
+      drawMarble(octx, fake);
+    } else if (type === 'phone') {
+      fake.w = 24; fake.h = 46; fake.color = colorOrPalette;
+      drawPhone(octx, fake);
+    }
+
+    return { canvas: off, ox: box.ox, oy: box.oy };
+  }
+
+  function buildSpriteCache() {
+    spriteCache = {};
+    const VARIANTS_PER_COLOR = 2;
+    TYPES.forEach(type => {
+      spriteCache[type] = [];
+      PALETTES[type].forEach(colorOrPalette => {
+        for (let v = 0; v < VARIANTS_PER_COLOR; v++) {
+          spriteCache[type].push(buildSprite(type, colorOrPalette));
+        }
+      });
+    });
+  }
+
+  function drawItem(item, t) {
+    const variant = spriteCache[item.type][item.variantIndex];
+    if (!variant) return;
+    const bob = Math.sin(t * 0.002 + item.bobPhase) * 1;
+    const scale = item.scale || 1;
+    const dw = variant.canvas.width * scale, dh = variant.canvas.height * scale;
+    ctx.drawImage(variant.canvas, item.x - variant.ox * scale, item.y - variant.oy * scale + bob, dw, dh);
+  }
+
+  function drawClaw() {
+    const openAmt = clawOpen;
+    ctx.save();
+    ctx.strokeStyle = '#5f636c';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(claw.x, RAIL_Y - 6);
+    ctx.lineTo(claw.x, claw.y - 14);
+    ctx.stroke();
+
+    ctx.fillStyle = '#3d4148';
+    ctx.fillRect(claw.x - 8, claw.y - 16, 16, 10);
+
+    const spread = 6 + openAmt * 10;
+    ctx.strokeStyle = '#2b2e33';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    [-1, 1].forEach(side => {
+      ctx.beginPath();
+      ctx.moveTo(claw.x + side * 4, claw.y - 8);
+      ctx.lineTo(claw.x + side * spread, claw.y + 14);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(claw.x + side * spread, claw.y + 14);
+      ctx.lineTo(claw.x + side * (spread - 6), claw.y + 20);
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  function render(t) {
+    drawMachineBackground();
+    const visible = items.filter(item => !item.held).sort((a, b) => a.y - b.y);
+    visible.forEach(item => drawItem(item, t));
+    drawClaw();
+    if (heldItem) drawItem(heldItem, t);
+  }
+
+  // ---------- Game loop ----------
+  function grabPoint() { return { x: claw.x, y: claw.y + 16 }; }
+
+  function update() {
+    if (!busy) {
+      if (keys.left) claw.x -= MOVE_SPEED;
+      if (keys.right) claw.x += MOVE_SPEED;
+      if (keys.up) claw.y -= MOVE_SPEED;
+      if (keys.down) claw.y += MOVE_SPEED;
+      claw.x = Math.max(CLAW_MIN_X, Math.min(CLAW_MAX_X, claw.x));
+      claw.y = Math.max(CLAW_MIN_Y, Math.min(CLAW_MAX_Y, claw.y));
+    }
+
+    clawOpen += (clawAnimTarget - clawOpen) * 0.25;
+
+    if (heldItem) {
+      const gp = grabPoint();
+      heldItem.x = gp.x;
+      heldItem.y = gp.y;
+    }
+
+    items.forEach(item => {
+      if (item.falling) {
+        item.vy += 0.6;
+        item.y += item.vy;
+        const landY = FLOOR_Y - 4 - pileHeightAt(item.x);
+        if (item.y >= landY) { item.y = landY; item.falling = false; item.vy = 0; }
+      }
+    });
+  }
+
+  function loop(t) {
+    update();
+    render(t);
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- Catch / release ----------
+  function setMsg(text) { messageEl.textContent = text; }
+
+  function attemptCatch() {
+    if (busy) return;
+    if (!heldItem) {
+      busy = true;
+      clawAnimTarget = 0;
+      setMsg('Grabbing...');
+      setTimeout(() => {
+        const gp = grabPoint();
+        let nearest = null, nearestDist = Infinity;
+        items.forEach(item => {
+          if (item.held || item.falling) return;
+          const d = Math.hypot(item.x - gp.x, item.y - gp.y);
+          if (d < nearestDist) { nearestDist = d; nearest = item; }
+        });
+        if (nearest && nearestDist < GRAB_RADIUS && Math.random() < GRAB_CHANCE) {
+          nearest.held = true;
+          heldItem = nearest;
+          setMsg('Got it! Carry it to the chute and hit CATCH.');
+        } else if (nearest && nearestDist < GRAB_RADIUS) {
+          setMsg('So close — it slipped! Try again.');
+        } else {
+          setMsg('Nothing there. Line up over a toy first.');
+        }
+        clawAnimTarget = 1;
+        busy = false;
+      }, 380);
+    } else {
+      busy = true;
+      const overChute = (claw.x > CHUTE.x - 20 && claw.x < CHUTE.x + CHUTE.w + 10 && claw.y > FLOOR_Y - 120);
+      clawAnimTarget = 1;
+      setTimeout(() => {
+        const item = heldItem;
+        item.held = false;
+        heldItem = null;
+        if (overChute) {
+          items = items.filter(i => i.id !== item.id);
+          score += 1;
+          scoreVal.textContent = score;
+          collected.push(item.type);
+          renderPrizeShelf();
+          setMsg(itemLabel(item.type) + ' won! Nice catch.');
+          const slot = rand(PILE_X_MIN, PILE_X_MAX);
+          items.push(createItem(item.type, slot));
+        } else {
+          item.falling = true;
+          item.x = claw.x;
+          setMsg('Dropped early — it fell back to the floor.');
+        }
+        busy = false;
+      }, 300);
+    }
+  }
+
+  function renderPrizeShelf() {
+    prizeList.innerHTML = '';
+    collected.slice(-14).forEach(type => {
+      const chip = document.createElement('div');
+      chip.className = 'prize-chip';
+      const mini = document.createElement('canvas');
+      mini.width = 30; mini.height = 30;
+      const mctx = mini.getContext('2d');
+      const variants = spriteCache[type];
+      const variant = variants[Math.floor(Math.random() * variants.length)];
+      const scale = Math.min(26 / variant.canvas.width, 26 / variant.canvas.height);
+      const dw = variant.canvas.width * scale, dh = variant.canvas.height * scale;
+      mctx.drawImage(variant.canvas, (30 - dw) / 2, (30 - dh) / 2, dw, dh);
+      chip.appendChild(mini);
+      prizeList.appendChild(chip);
+    });
+  }
+
+  // ---------- Input ----------
+  const keyMap = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right' };
+  window.addEventListener('keydown', (e) => {
+    if (keyMap[e.key]) { keys[keyMap[e.key]] = true; e.preventDefault(); }
+    if (e.key === ' ') { attemptCatch(); e.preventDefault(); }
+  });
+  window.addEventListener('keyup', (e) => {
+    if (keyMap[e.key]) { keys[keyMap[e.key]] = false; e.preventDefault(); }
+  });
+
+  document.querySelectorAll('#dpad button').forEach(btn => {
+    const dir = btn.dataset.dir;
+    const set = (v) => (e) => { keys[dir] = v; e.preventDefault(); };
+    btn.addEventListener('mousedown', set(true));
+    btn.addEventListener('mouseup', set(false));
+    btn.addEventListener('mouseleave', set(false));
+    btn.addEventListener('touchstart', set(true));
+    btn.addEventListener('touchend', set(false));
+  });
+
+  catchBtn.addEventListener('click', attemptCatch);
+  resetBtn.addEventListener('click', () => {
+    items = []; score = 0; collected = [];
+    heldItem = null; busy = false; clawOpen = 1; clawAnimTarget = 1;
+    claw = { x: W / 2, y: RAIL_Y };
+    scoreVal.textContent = '0';
+    renderPrizeShelf();
+    spawnField();
+    setMsg('Machine reset. Good luck!');
+  });
+
+  buildSpriteCache();
+  spawnField();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
